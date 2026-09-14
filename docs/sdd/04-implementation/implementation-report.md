@@ -92,3 +92,43 @@ PASS - independent review identified three HIGH findings (missing Order audit ti
 ### Known limitations
 
 The temporary `ecommerce_test` PostgreSQL container was removed after verification. Runtime database configuration and all business endpoints remain intentionally deferred to their approved owning tasks.
+
+## TASK-003 through TASK-007 — Business MVP Implementation Handoff
+
+- **Status:** `IN PROGRESS` — source implementation is present; required database-backed and critical-flow verification is pending.
+- **Scope:** TASK-003 authentication/profile/authorization; TASK-004 catalog/category/product/inventory; TASK-005 cart/checkout/order/Admin order operations; TASK-006 public/auth shopping UI; TASK-007 customer transactional/profile/Admin UI.
+- **Dependencies:** TASK-001 and TASK-002 remain `PASS`; implementation consumes the approved Prisma schema and API/UI contracts.
+
+| Task | Implementation | Verification gate |
+| --- | --- | --- |
+| TASK-003 | Present | BLOCKED — DB/API negative and ownership evidence pending |
+| TASK-004 | Present | BLOCKED — disposable PostgreSQL catalog/lifecycle evidence pending |
+| TASK-005 | Present | BLOCKED — transaction/concurrency/idempotency evidence pending |
+| TASK-006 | Present | BLOCKED — responsive/accessibility and API-backed E2E evidence pending |
+| TASK-007 | Present | BLOCKED — Customer/Admin integration E2E evidence pending |
+
+### Main implementation areas
+
+- `apps/api/src/auth/**`, `apps/api/src/http/**`: Argon2id credentials, opaque HMAC-backed sessions, cookie lifecycle, role/origin guards, safe profile DTOs, bounded input parsing, and controlled Admin provisioning.
+- `apps/api/src/catalog/**`: active public catalog, normalized category lifecycle, product search/filter/pagination, and Admin inventory management.
+- `apps/api/src/commerce/**`: owner-scoped carts, versioned mutations, transactional checkout with row locking, stock decrement, immutable order snapshots, idempotency replay/conflict handling, customer history, and Admin status transitions.
+- `apps/web/src/api.ts`, `apps/web/src/ui.tsx`, `apps/web/src/App.tsx`, `apps/web/src/styles.css`: credentialed API client, query-managed routing, public/customer/Admin pages, loading/empty/error/pending states, responsive layout, confirmations, and accessible form error associations.
+- Runtime integration: `apps/api/src/app.ts`, `apps/api/src/server.ts`, `.env.example`, `apps/web/vite.config.ts`, `playwright.config.ts`, and the additive category-normalization migration.
+- Test coverage: `apps/api/src/db/mvp.integration.test.ts`, `tests/e2e/critical.spec.ts`, and [test design](./test-design.md) covering real database/API and critical browser journeys.
+
+### Verification handoff
+
+| Check | Result | Evidence / limitation |
+| --- | --- | --- |
+| `npm run format:check` | PASS | Node 22.12.0 |
+| `npm run lint` | PASS | Node 22.12.0 |
+| `npm run typecheck` | PASS | Node 22.12.0 |
+| `npm test` | PASS | 2 unit, 13 API, 6 web tests |
+| `npm run build` | PASS | Prisma generate, contracts, API, and web build |
+| `npm run test:e2e` | PASS (smoke only) | 1 shell test passed, 2 critical + 6 responsive tests skipped because required E2E environment was absent; smoke API calls logged `ECONNREFUSED 127.0.0.1:3000` |
+| `NODE_ENV=test TEST_DATABASE_URL=... npm run test:db` | BLOCKED | With a valid `_test` URL, PostgreSQL is unavailable at `127.0.0.1:5432`; 2 suites / 12 integration tests skipped after connection failure |
+| `prisma validate` | PASS | Valid schema with non-production `_test` URL |
+| `npm audit --omit=dev --json` | PASS | 0 vulnerabilities |
+| `git diff --check` | PASS | No whitespace errors |
+
+The source-level review and static gates do not replace disposable-PostgreSQL evidence. TASK-003 through TASK-007 and TASK-008 must remain below `PASS` until DB-backed API/concurrency tests and real Customer/Admin E2E flows run successfully.

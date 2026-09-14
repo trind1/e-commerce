@@ -11,6 +11,22 @@ const errorDefinitions: Record<ControlledErrorCode, { statusCode: number; messag
   ROLE_FORBIDDEN: { statusCode: 403, message: 'Action is not permitted' },
   ORIGIN_FORBIDDEN: { statusCode: 403, message: 'Request origin is not permitted' },
   NOT_FOUND: { statusCode: 404, message: 'Resource not found' },
+  CATEGORY_NOT_FOUND: { statusCode: 404, message: 'Category not found' },
+  CATEGORY_NAME_EXISTS: { statusCode: 409, message: 'Category name already exists' },
+  CATEGORY_INACTIVE: { statusCode: 409, message: 'Category is inactive' },
+  PRODUCT_NOT_FOUND: { statusCode: 404, message: 'Product not found' },
+  PRODUCT_UNAVAILABLE: { statusCode: 409, message: 'Product is unavailable' },
+  ORDER_NOT_FOUND: { statusCode: 404, message: 'Order not found' },
+  INSUFFICIENT_STOCK: { statusCode: 409, message: 'Insufficient stock' },
+  CART_ITEM_NOT_FOUND: { statusCode: 404, message: 'Cart item not found' },
+  EMPTY_CART: { statusCode: 409, message: 'Cart is empty' },
+  CART_VERSION_CONFLICT: { statusCode: 409, message: 'Cart version conflicts with current state' },
+  IDEMPOTENCY_KEY_REUSED: { statusCode: 409, message: 'Idempotency key cannot be reused' },
+  INVALID_STATUS: { statusCode: 400, message: 'Invalid status' },
+  INVALID_ORDER_TRANSITION: {
+    statusCode: 409,
+    message: 'Order status transition is not permitted',
+  },
   CONFLICT: { statusCode: 409, message: 'Request conflicts with current state' },
 };
 

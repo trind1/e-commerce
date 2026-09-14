@@ -4,26 +4,26 @@ Task-Decomposition-stage traceability. TASK-001 and TASK-002 are PASS with actua
 
 | Requirement | Acceptance Criteria | Planning | Task | Expected tests | Implementation | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| REQ-AUTH-001 | AC-AUTH-001-01–04 | [Auth/API/Data](./02-plan/architecture.md#request-handling-and-authorization) | TASK-003 | Auth unit/API/session tests | NOT STARTED | PLANNED |
-| REQ-AUTH-002 | AC-AUTH-002-01–04 | [Auth/API/Data](./02-plan/api-contract.md#authentication-and-profile) | TASK-003 | Auth security/API tests | NOT STARTED | PLANNED |
-| REQ-USER-001 | AC-USER-001-01–04 | [Profile/UI](./02-plan/api-contract.md#authentication-and-profile) | TASK-003 | Profile ownership/API/UI tests | NOT STARTED | PLANNED |
-| REQ-CATEGORY-001 | AC-CATEGORY-001-01–03 | [Catalog/Data](./02-plan/api-contract.md#public-catalog) | TASK-004 | Category discovery/lifecycle tests | NOT STARTED | PLANNED |
-| REQ-CATEGORY-002 | AC-CATEGORY-002-01–04 | [Admin catalog/Data](./02-plan/api-contract.md#admin-category-product-and-inventory) | TASK-004 | Category validation/Admin API tests | NOT STARTED | PLANNED |
-| REQ-PRODUCT-001 | AC-PRODUCT-001-01–04 | [Catalog/UI](./02-plan/api-contract.md#public-catalog) | TASK-004 | Product search/detail/API/UI tests | NOT STARTED | PLANNED |
-| REQ-PRODUCT-002 | AC-PRODUCT-002-01–04 | [Admin catalog/Data](./02-plan/api-contract.md#admin-category-product-and-inventory) | TASK-004 | Product lifecycle/Admin API tests | NOT STARTED | PLANNED |
-| REQ-INVENTORY-001 | AC-INVENTORY-001-01–05 | [Inventory/Transactions](./02-plan/data-model.md#transactions-lifecycle-and-concurrency) | TASK-004 | Inventory validation/concurrency tests | NOT STARTED | PLANNED |
-| REQ-CART-001 | AC-CART-001-01–04 | [Cart/API](./02-plan/api-contract.md#customer-cart) | TASK-005 | Cart ownership/quantity/summary tests | NOT STARTED | PLANNED |
-| REQ-CART-002 | AC-CART-002-01–05 | [Cart/Checkout](./02-plan/api-contract.md#customer-checkout-and-orders) | TASK-005 | Cart checkout validation/rollback tests | NOT STARTED | PLANNED |
-| REQ-ORDER-001 | AC-ORDER-001-01–05 | [Checkout/Data](./02-plan/architecture.md#checkout-consistency-and-idempotency) | TASK-005 | Transaction/snapshot/idempotency tests | NOT STARTED | PLANNED |
-| REQ-ORDER-002 | AC-ORDER-002-01–04 | [Customer orders/API](./02-plan/api-contract.md#customer-checkout-and-orders) | TASK-005 | Order ownership/history tests | NOT STARTED | PLANNED |
-| REQ-ORDER-003 | AC-ORDER-003-01–04 | [Admin orders/API](./02-plan/api-contract.md#admin-orders) | TASK-005 | Status transition/Admin tests | NOT STARTED | PLANNED |
-| REQ-ADMIN-001 | AC-ADMIN-001-01–04 | [Admin/API/UI](./02-plan/api-contract.md#admin-category-product-and-inventory) | TASK-005 + TASK-007 | Admin API/UI/E2E tests | NOT STARTED | PLANNED |
-| REQ-UI-001 | AC-UI-001-01–04 | [UI design](./02-plan/ui-ux-design.md#page-and-state-design) | TASK-006 + TASK-007 | Component/state/E2E tests | NOT STARTED | PLANNED |
-| REQ-UI-002 | AC-UI-002-01–04 | [UI interactions](./02-plan/ui-ux-design.md#interaction-rules) | TASK-006 + TASK-007 | Form/action/accessibility tests | NOT STARTED | PLANNED |
-| REQ-UI-003 | AC-UI-003-01–04 | [Responsive/accessibility](./02-plan/ui-ux-design.md#responsive-requirements) | TASK-006 + TASK-007 | Viewport/keyboard/contrast tests | NOT STARTED | PLANNED |
+| REQ-AUTH-001 | AC-AUTH-001-01–04 | [Auth/API/Data](./02-plan/architecture.md#request-handling-and-authorization) | TASK-003 | Auth unit/API/session tests | Auth/session implementation present; DB/API verification pending | IN PROGRESS |
+| REQ-AUTH-002 | AC-AUTH-002-01–04 | [Auth/API/Data](./02-plan/api-contract.md#authentication-and-profile) | TASK-003 | Auth security/API tests | Auth implementation present; DB/API verification pending | IN PROGRESS |
+| REQ-USER-001 | AC-USER-001-01–04 | [Profile/UI](./02-plan/api-contract.md#authentication-and-profile) | TASK-003 | Profile ownership/API/UI tests | Profile implementation present; DB/API/UI verification pending | IN PROGRESS |
+| REQ-CATEGORY-001 | AC-CATEGORY-001-01–03 | [Catalog/Data](./02-plan/api-contract.md#public-catalog) | TASK-004 | Category discovery/lifecycle tests | Catalog implementation present; DB/API verification pending | IN PROGRESS |
+| REQ-CATEGORY-002 | AC-CATEGORY-002-01–04 | [Admin catalog/Data](./02-plan/api-contract.md#admin-category-product-and-inventory) | TASK-004 | Category validation/Admin API tests | Admin category implementation present; DB/API verification pending | IN PROGRESS |
+| REQ-PRODUCT-001 | AC-PRODUCT-001-01–04 | [Catalog/UI](./02-plan/api-contract.md#public-catalog) | TASK-004 | Product search/detail/API/UI tests | Product implementation present; DB/API/UI verification pending | IN PROGRESS |
+| REQ-PRODUCT-002 | AC-PRODUCT-002-01–04 | [Admin catalog/Data](./02-plan/api-contract.md#admin-category-product-and-inventory) | TASK-004 | Product lifecycle/Admin API tests | Admin product implementation present; DB/API verification pending | IN PROGRESS |
+| REQ-INVENTORY-001 | AC-INVENTORY-001-01–05 | [Inventory/Transactions](./02-plan/data-model.md#transactions-lifecycle-and-concurrency) | TASK-004 | Inventory validation/concurrency tests | Inventory implementation present; DB/concurrency verification pending | IN PROGRESS |
+| REQ-CART-001 | AC-CART-001-01–04 | [Cart/API](./02-plan/api-contract.md#customer-cart) | TASK-005 | Cart ownership/quantity/summary tests | Cart implementation present; DB/API verification pending | IN PROGRESS |
+| REQ-CART-002 | AC-CART-002-01–05 | [Cart/Checkout](./02-plan/api-contract.md#customer-checkout-and-orders) | TASK-005 | Cart checkout validation/rollback tests | Checkout implementation present; DB/rollback verification pending | IN PROGRESS |
+| REQ-ORDER-001 | AC-ORDER-001-01–05 | [Checkout/Data](./02-plan/architecture.md#checkout-consistency-and-idempotency) | TASK-005 | Transaction/snapshot/idempotency tests | Order implementation present; DB/concurrency verification pending | IN PROGRESS |
+| REQ-ORDER-002 | AC-ORDER-002-01–04 | [Customer orders/API](./02-plan/api-contract.md#customer-checkout-and-orders) | TASK-005 | Order ownership/history tests | Customer order implementation present; DB/API verification pending | IN PROGRESS |
+| REQ-ORDER-003 | AC-ORDER-003-01–04 | [Admin orders/API](./02-plan/api-contract.md#admin-orders) | TASK-005 | Status transition/Admin tests | Admin order implementation present; DB/API verification pending | IN PROGRESS |
+| REQ-ADMIN-001 | AC-ADMIN-001-01–04 | [Admin/API/UI](./02-plan/api-contract.md#admin-category-product-and-inventory) | TASK-005 + TASK-007 | Admin API/UI/E2E tests | Admin API/UI implementation present; integration verification pending | IN PROGRESS |
+| REQ-UI-001 | AC-UI-001-01–04 | [UI design](./02-plan/ui-ux-design.md#page-and-state-design) | TASK-006 + TASK-007 | Component/state/E2E tests | Shared, public, customer, and admin UI present; integration verification pending | IN PROGRESS |
+| REQ-UI-002 | AC-UI-002-01–04 | [UI interactions](./02-plan/ui-ux-design.md#interaction-rules) | TASK-006 + TASK-007 | Form/action/accessibility tests | UI interaction/error states present; component/E2E verification pending | IN PROGRESS |
+| REQ-UI-003 | AC-UI-003-01–04 | [Responsive/accessibility](./02-plan/ui-ux-design.md#responsive-requirements) | TASK-006 + TASK-007 | Viewport/keyboard/contrast tests | Responsive/accessibility implementation present; viewport/E2E verification pending | IN PROGRESS |
 | REQ-ERROR-001 | AC-ERROR-001-01–04 | [Error contract](./02-plan/api-contract.md#common-rules) | TASK-001 | Validation/error DTO/security tests | TASK-001 foundation PASS; endpoint coverage pending | IN PROGRESS |
-| REQ-SEC-001 | AC-SEC-001-01–05 | [Security boundaries](./02-plan/architecture.md#request-handling-and-authorization) | TASK-003 | Origin/session/input/output tests | NOT STARTED | PLANNED |
-| REQ-SEC-002 | AC-SEC-002-01–04 | [Ownership/privacy](./02-plan/architecture.md#persistence-and-public-data-boundary) | TASK-003 | Role/ownership/IDOR tests | NOT STARTED | PLANNED |
+| REQ-SEC-001 | AC-SEC-001-01–05 | [Security boundaries](./02-plan/architecture.md#request-handling-and-authorization) | TASK-003 | Origin/session/input/output tests | Controls implemented; negative DB/API verification pending | IN PROGRESS |
+| REQ-SEC-002 | AC-SEC-002-01–04 | [Ownership/privacy](./02-plan/architecture.md#persistence-and-public-data-boundary) | TASK-003 | Role/ownership/IDOR tests | Ownership/DTO controls implemented; DB/API verification pending | IN PROGRESS |
 | REQ-QUALITY-001 | AC-QUALITY-001-01–03 | [Quality gates](./02-plan/plan.md#required-verification-interface) | TASK-001 + TASK-008 | Quality scripts and acceptance audit | TASK-001 quality foundation PASS; domain/acceptance pending | IN PROGRESS |
 | REQ-QUALITY-002 | AC-QUALITY-002-01–05 | [Reliability](./02-plan/plan.md#planning-risks-and-controls) | TASK-001 + TASK-008 | Concurrency/regression/full-suite tests | TASK-001 quality foundation PASS; full coverage pending | IN PROGRESS |
 

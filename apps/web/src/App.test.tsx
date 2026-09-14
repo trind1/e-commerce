@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { App } from './App.js';
 
 describe('App', () => {
-  it('renders the application foundation heading', () => {
+  it('renders the shopping experience heading', () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: 'E-commerce' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Find your next favorite' })).toBeInTheDocument();
   });
 });

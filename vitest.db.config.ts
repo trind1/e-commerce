@@ -10,7 +10,8 @@ export default defineConfig({
   test: {
     name: 'database',
     environment: 'node',
-    include: ['apps/api/src/db/**/*.integration.test.ts'],
+    fileParallelism: false,
+    include: ['apps/api/src/**/*.integration.test.ts'],
     testTimeout: 15_000,
   },
 });
