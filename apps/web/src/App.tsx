@@ -56,11 +56,55 @@ import {
   InlineAlert,
   LoadingState,
   PageHeader,
+  Pagination,
   ProductCard,
 } from './ui.js';
+import { formatUsdInput, parseUsdMinor, PRICE_VALIDATION_MESSAGE } from './money.js';
 
 const queryDefaults = { staleTime: 15_000, retry: false };
 const queryClient = new QueryClient({ defaultOptions: { queries: queryDefaults } });
+const PAGE_SIZE = 20;
+
+function usePageParameter() {
+  const [params, setParams] = useSearchParams();
+  const requestedPage = Number(params.get('page') ?? '1');
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const setPage = (nextPage: number) => {
+    const next = new URLSearchParams(params);
+    if (nextPage <= 1) next.delete('page');
+    else next.set('page', String(nextPage));
+    setParams(next);
+  };
+  return [page, setPage] as const;
+}
+
+function pageQuery(page: number): string {
+  return `?page=${page}&pageSize=${PAGE_SIZE}`;
+}
+
+function nextOrderStatus(status: Order['status']): Order['status'] | null {
+  if (status === 'PLACED') return 'PROCESSING';
+  if (status === 'PROCESSING') return 'COMPLETED';
+  return null;
+}
+
+function StatusDates({ dates }: { dates: Order['statusDates'] }) {
+  const rows = [
+    ['Placed', dates.placedAt],
+    ['Processing', dates.processingAt],
+    ['Completed', dates.completedAt],
+  ] as const;
+  return (
+    <dl className="status-dates">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value ? new Date(value).toLocaleString() : 'Not reached yet'}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 function AppShell() {
   const client = useQueryClient();
@@ -286,15 +330,15 @@ function ProductListPage() {
   const page = Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const [draftQ, setDraftQ] = useState(q);
   const categories = useQuery({
-    queryKey: ['categories'],
-    queryFn: getCategories,
+    queryKey: ['categories', 'filter-options'],
+    queryFn: () => getCategories('?page=1&pageSize=100'),
     ...queryDefaults,
   });
   const products = useQuery({
     queryKey: ['products', q, categoryId, page],
     queryFn: () =>
       getProducts(
-        `?page=${page}&pageSize=20${q ? `&q=${encodeURIComponent(q)}` : ''}${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ''}`,
+        `${pageQuery(page)}${q ? `&q=${encodeURIComponent(q)}` : ''}${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ''}`,
       ),
     ...queryDefaults,
   });
@@ -380,26 +424,13 @@ function ProductListPage() {
           ))}
         </div>
       )}
-      {!products.isError && products.data && products.data.totalPages > 1 && (
-        <nav className="pagination" aria-label="Product pages">
-          <button
-            className="button secondary"
-            disabled={page <= 1}
-            onClick={() => setFilter('page', String(page - 1))}
-          >
-            Previous
-          </button>
-          <span aria-live="polite">
-            Page {page} of {products.data.totalPages}
-          </span>
-          <button
-            className="button secondary"
-            disabled={page >= products.data.totalPages}
-            onClick={() => setFilter('page', String(page + 1))}
-          >
-            Next
-          </button>
-        </nav>
+      {!products.isError && products.data && (
+        <Pagination
+          page={page}
+          totalPages={products.data.totalPages}
+          label="Product pages"
+          onPageChange={(nextPage) => setFilter('page', String(nextPage))}
+        />
       )}
     </section>
   );
@@ -745,7 +776,11 @@ function OrderDetailPage() {
         {order.data.items.map((item) => (
           <div className="summary-row" key={item.productId}>
             <span>
-              {item.productName} × {item.quantity}
+              <strong>{item.productName}</strong>
+              <small>
+                Product {item.productId.slice(0, 8)} · {formatMoney(item.unitPriceMinor)} each ·
+                Quantity {item.quantity}
+              </small>
             </span>
             <strong>{formatMoney(item.lineSubtotalMinor)}</strong>
           </div>
@@ -754,7 +789,7 @@ function OrderDetailPage() {
           <span>Total</span>
           <strong>{formatMoney(order.data.totalMinor)}</strong>
         </div>
-        <p className="muted">Placed {new Date(order.data.statusDates.placedAt).toLocaleString()}</p>
+        <StatusDates dates={order.data.statusDates} />
         <Link className="button secondary" to="/orders">
           View order history
         </Link>
@@ -763,7 +798,12 @@ function OrderDetailPage() {
   );
 }
 function OrdersPage() {
-  const orders = useQuery({ queryKey: ['orders'], queryFn: getOrders, ...queryDefaults });
+  const [page, setPage] = usePageParameter();
+  const orders = useQuery({
+    queryKey: ['orders', page],
+    queryFn: () => getOrders(pageQuery(page)),
+    ...queryDefaults,
+  });
   if (orders.isPending)
     return (
       <section className="container">
@@ -801,6 +841,14 @@ function OrdersPage() {
             </Link>
           ))}
         </div>
+      )}
+      {orders.data && (
+        <Pagination
+          page={page}
+          totalPages={orders.data.totalPages}
+          label="Order pages"
+          onPageChange={setPage}
+        />
       )}
     </section>
   );
@@ -898,12 +946,14 @@ function AdminPage({ title, children }: { title: string; children: ReactNode }) 
 }
 function AdminCategoriesPage() {
   const client = useQueryClient();
+  const [page, setPage] = usePageParameter();
   const categories = useQuery({
-    queryKey: ['admin-categories'],
-    queryFn: getAdminCategories,
+    queryKey: ['admin-categories', page],
+    queryFn: () => getAdminCategories(pageQuery(page)),
     ...queryDefaults,
   });
   const [name, setName] = useState('');
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const create = useMutation({
     mutationFn: createCategory,
     onSuccess: async () => {
@@ -924,6 +974,19 @@ function AdminCategoriesPage() {
         client.invalidateQueries({ queryKey: ['admin-products'] }),
         client.invalidateQueries({ queryKey: ['products'] }),
       ]),
+  });
+  const rename = useMutation({
+    mutationFn: ({ id, name: nextName }: { id: string; name: string }) =>
+      updateCategory(id, { name: nextName }),
+    onSuccess: async () => {
+      setEditing(null);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['admin-categories'] }),
+        client.invalidateQueries({ queryKey: ['categories'] }),
+        client.invalidateQueries({ queryKey: ['admin-products'] }),
+        client.invalidateQueries({ queryKey: ['products'] }),
+      ]);
+    },
   });
   return (
     <AdminPage title="Categories">
@@ -954,6 +1017,11 @@ function AdminCategoriesPage() {
         </InlineAlert>
       )}
       {toggle.isError && <InlineAlert tone="error">Could not update category status.</InlineAlert>}
+      {rename.isError && (
+        <InlineAlert tone="error">
+          {rename.error instanceof ApiError ? rename.error.message : 'Could not rename category.'}
+        </InlineAlert>
+      )}
       {categories.isPending ? (
         <LoadingState />
       ) : categories.isError ? (
@@ -964,37 +1032,86 @@ function AdminCategoriesPage() {
         <div className="admin-list">
           {categories.data.items.map((category) => (
             <div className="admin-row" key={category.id}>
-              <div>
-                <strong>{category.name}</strong>
-                <small>{category.isActive ? 'Active' : 'Inactive'}</small>
+              {editing?.id === category.id ? (
+                <form
+                  className="inline-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    rename.mutate({ id: category.id, name: editing.name });
+                  }}
+                >
+                  <label className="sr-only" htmlFor={`category-name-${category.id}`}>
+                    Name for {category.name}
+                  </label>
+                  <input
+                    id={`category-name-${category.id}`}
+                    value={editing.name}
+                    onChange={(event) => setEditing({ ...editing, name: event.target.value })}
+                    required
+                  />
+                  <button className="button secondary" disabled={rename.isPending}>
+                    Save
+                  </button>
+                  <button
+                    className="button secondary"
+                    type="button"
+                    disabled={rename.isPending}
+                    onClick={() => setEditing(null)}
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <div>
+                  <strong>{category.name}</strong>
+                  <small>{category.isActive ? 'Active' : 'Inactive'}</small>
+                </div>
+              )}
+              <div className="admin-actions">
+                <button
+                  className="button secondary"
+                  disabled={toggle.isPending || rename.isPending}
+                  onClick={() => setEditing({ id: category.id, name: category.name })}
+                >
+                  Edit
+                </button>
+                <button
+                  className="button secondary"
+                  disabled={toggle.isPending || rename.isPending}
+                  onClick={() =>
+                    (!category.isActive || window.confirm(`Deactivate ${category.name}?`)) &&
+                    toggle.mutate({ id: category.id, isActive: !category.isActive })
+                  }
+                >
+                  {category.isActive ? 'Deactivate' : 'Reactivate'}
+                </button>
               </div>
-              <button
-                className="button secondary"
-                disabled={toggle.isPending}
-                onClick={() =>
-                  (!category.isActive || window.confirm(`Deactivate ${category.name}?`)) &&
-                  toggle.mutate({ id: category.id, isActive: !category.isActive })
-                }
-              >
-                {category.isActive ? 'Deactivate' : 'Reactivate'}
-              </button>
             </div>
           ))}
         </div>
+      )}
+      {categories.data && (
+        <Pagination
+          page={page}
+          totalPages={categories.data.totalPages}
+          label="Category pages"
+          onPageChange={setPage}
+        />
       )}
     </AdminPage>
   );
 }
 function AdminProductsPage() {
   const client = useQueryClient();
+  const [page, setPage] = usePageParameter();
   const products = useQuery({
-    queryKey: ['admin-products'],
-    queryFn: getAdminProducts,
+    queryKey: ['admin-products', page],
+    queryFn: () => getAdminProducts(pageQuery(page)),
     ...queryDefaults,
   });
   const categories = useQuery({
-    queryKey: ['admin-categories'],
-    queryFn: getAdminCategories,
+    queryKey: ['admin-categories', 'product-options'],
+    queryFn: () => getAdminCategories('?page=1&pageSize=100&isActive=true'),
     ...queryDefaults,
   });
   const [form, setForm] = useState({
@@ -1004,20 +1121,46 @@ function AdminProductsPage() {
     categoryId: '',
     stock: '0',
   });
+  const [createPriceError, setCreatePriceError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    price: string;
+    categoryId: string;
+    categoryName: string;
+    originalCategoryId: string;
+  } | null>(null);
+  const [editPriceError, setEditPriceError] = useState<string | null>(null);
   const create = useMutation({
-    mutationFn: () =>
-      createProduct({
-        name: form.name,
-        description: form.description,
-        priceMinor: Math.round(Number(form.price) * 100),
-        categoryId: form.categoryId,
-        initialStock: Number(form.stock),
-      }),
+    mutationFn: createProduct,
     onSuccess: async () => {
       setForm({ name: '', description: '', price: '', categoryId: '', stock: '0' });
       await Promise.all([
         client.invalidateQueries({ queryKey: ['admin-products'] }),
         client.invalidateQueries({ queryKey: ['products'] }),
+      ]);
+    },
+  });
+  const update = useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: {
+        name: string;
+        description: string;
+        priceMinor: number;
+        categoryId?: string;
+      };
+    }) => updateProduct(id, body),
+    onSuccess: async () => {
+      setEditing(null);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['admin-products'] }),
+        client.invalidateQueries({ queryKey: ['products'] }),
+        client.invalidateQueries({ queryKey: ['product'] }),
       ]);
     },
   });
@@ -1037,7 +1180,19 @@ function AdminProductsPage() {
         className="form-card admin-form"
         onSubmit={(event) => {
           event.preventDefault();
-          create.mutate();
+          const priceMinor = parseUsdMinor(form.price);
+          if (priceMinor === null) {
+            setCreatePriceError(PRICE_VALIDATION_MESSAGE);
+            return;
+          }
+          setCreatePriceError(null);
+          create.mutate({
+            name: form.name,
+            description: form.description,
+            priceMinor,
+            categoryId: form.categoryId,
+            initialStock: Number(form.stock),
+          });
         }}
       >
         <h2>Add product</h2>
@@ -1058,14 +1213,18 @@ function AdminProductsPage() {
           />
         </Field>
         <div className="form-grid">
-          <Field label="Price (USD)" id="new-product-price">
+          <Field label="Price (USD)" id="new-product-price" error={createPriceError ?? undefined}>
             <input
               id="new-product-price"
-              type="number"
-              min="0.01"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              aria-invalid={Boolean(createPriceError)}
+              aria-describedby={createPriceError ? 'new-product-price-error' : undefined}
               value={form.price}
-              onChange={(event) => setForm({ ...form, price: event.target.value })}
+              onChange={(event) => {
+                setCreatePriceError(null);
+                setForm({ ...form, price: event.target.value });
+              }}
               required
             />
           </Field>
@@ -1089,15 +1248,14 @@ function AdminProductsPage() {
             required
           >
             <option value="">Choose a category</option>
-            {categories.data?.items
-              .filter((category) => category.isActive)
-              .map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
+            {categories.data?.items.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
           </select>
         </Field>
+        {categories.isError && <ErrorState error={categories.error} />}
         {create.isError && (
           <InlineAlert tone="error">
             {create.error instanceof ApiError ? create.error.message : 'Could not create product.'}
@@ -1107,6 +1265,108 @@ function AdminProductsPage() {
           Create product
         </button>
       </form>
+      {editing && (
+        <form
+          className="form-card admin-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const priceMinor = parseUsdMinor(editing.price);
+            if (priceMinor === null) {
+              setEditPriceError(PRICE_VALIDATION_MESSAGE);
+              return;
+            }
+            setEditPriceError(null);
+            update.mutate({
+              id: editing.id,
+              body: {
+                name: editing.name,
+                description: editing.description,
+                priceMinor,
+                ...(editing.categoryId !== editing.originalCategoryId
+                  ? { categoryId: editing.categoryId }
+                  : {}),
+              },
+            });
+          }}
+        >
+          <h2>Edit product</h2>
+          <Field label="Name" id="edit-product-name">
+            <input
+              id="edit-product-name"
+              value={editing.name}
+              onChange={(event) => setEditing({ ...editing, name: event.target.value })}
+              required
+            />
+          </Field>
+          <Field label="Description" id="edit-product-description">
+            <textarea
+              id="edit-product-description"
+              value={editing.description}
+              onChange={(event) => setEditing({ ...editing, description: event.target.value })}
+              required
+            />
+          </Field>
+          <div className="form-grid">
+            <Field label="Price (USD)" id="edit-product-price" error={editPriceError ?? undefined}>
+              <input
+                id="edit-product-price"
+                type="text"
+                inputMode="decimal"
+                aria-invalid={Boolean(editPriceError)}
+                aria-describedby={editPriceError ? 'edit-product-price-error' : undefined}
+                value={editing.price}
+                onChange={(event) => {
+                  setEditPriceError(null);
+                  setEditing({ ...editing, price: event.target.value });
+                }}
+                required
+              />
+            </Field>
+            <Field label="Category" id="edit-product-category">
+              <select
+                id="edit-product-category"
+                value={editing.categoryId}
+                onChange={(event) => setEditing({ ...editing, categoryId: event.target.value })}
+                required
+              >
+                {!categories.data?.items.some((category) => category.id === editing.categoryId) && (
+                  <option value={editing.categoryId} disabled>
+                    {editing.categoryName} (inactive)
+                  </option>
+                )}
+                {categories.data?.items.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          {update.isError && (
+            <InlineAlert tone="error">
+              {update.error instanceof ApiError
+                ? update.error.message
+                : 'Could not update product.'}
+            </InlineAlert>
+          )}
+          <div className="admin-actions">
+            <button className="button" disabled={update.isPending}>
+              Save changes
+            </button>
+            <button
+              className="button secondary"
+              type="button"
+              disabled={update.isPending}
+              onClick={() => {
+                setEditPriceError(null);
+                setEditing(null);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
       {products.isPending ? (
         <LoadingState />
       ) : products.isError ? (
@@ -1124,27 +1384,60 @@ function AdminProductsPage() {
                   {product.stockQuantity} units
                 </small>
               </div>
-              <button
-                className="button secondary"
-                disabled={toggle.isPending}
-                onClick={() =>
-                  (!product.isActive || window.confirm(`Deactivate ${product.name}?`)) &&
-                  toggle.mutate({ id: product.id, isActive: !product.isActive })
-                }
-              >
-                {product.isActive ? 'Deactivate' : 'Reactivate'}
-              </button>
+              <div className="admin-actions">
+                <button
+                  className="button secondary"
+                  disabled={toggle.isPending || update.isPending}
+                  onClick={() => {
+                    setEditPriceError(null);
+                    setEditing({
+                      id: product.id,
+                      name: product.name,
+                      description: product.description,
+                      price: formatUsdInput(product.priceMinor),
+                      categoryId: product.category.id,
+                      categoryName: product.category.name,
+                      originalCategoryId: product.category.id,
+                    });
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="button secondary"
+                  disabled={toggle.isPending || update.isPending}
+                  onClick={() =>
+                    (!product.isActive || window.confirm(`Deactivate ${product.name}?`)) &&
+                    toggle.mutate({ id: product.id, isActive: !product.isActive })
+                  }
+                >
+                  {product.isActive ? 'Deactivate' : 'Reactivate'}
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
       {toggle.isError && <InlineAlert tone="error">Could not update product status.</InlineAlert>}
+      {products.data && (
+        <Pagination
+          page={page}
+          totalPages={products.data.totalPages}
+          label="Admin product pages"
+          onPageChange={setPage}
+        />
+      )}
     </AdminPage>
   );
 }
 function AdminInventoryPage() {
   const client = useQueryClient();
-  const inventory = useQuery({ queryKey: ['inventory'], queryFn: getInventory, ...queryDefaults });
+  const [page, setPage] = usePageParameter();
+  const inventory = useQuery({
+    queryKey: ['inventory', page],
+    queryFn: () => getInventory(pageQuery(page)),
+    ...queryDefaults,
+  });
   const [values, setValues] = useState<Record<string, string>>({});
   const mutation = useMutation({
     mutationFn: ({ id, quantity }: { id: string; quantity: number }) =>
@@ -1215,14 +1508,23 @@ function AdminInventoryPage() {
           ))}
         </div>
       )}
+      {inventory.data && (
+        <Pagination
+          page={page}
+          totalPages={inventory.data.totalPages}
+          label="Inventory pages"
+          onPageChange={setPage}
+        />
+      )}
     </AdminPage>
   );
 }
 function AdminOrdersPage() {
   const client = useQueryClient();
+  const [page, setPage] = usePageParameter();
   const orders = useQuery({
-    queryKey: ['admin-orders'],
-    queryFn: getAdminOrders,
+    queryKey: ['admin-orders', page],
+    queryFn: () => getAdminOrders(pageQuery(page)),
     ...queryDefaults,
   });
   const mutation = useMutation({
@@ -1254,12 +1556,7 @@ function AdminOrdersPage() {
       ) : (
         <div className="admin-list">
           {orders.data.items.map((order) => {
-            const next =
-              order.status === 'PLACED'
-                ? 'PROCESSING'
-                : order.status === 'PROCESSING'
-                  ? 'COMPLETED'
-                  : null;
+            const next = nextOrderStatus(order.status);
             return (
               <div className="admin-row" key={order.id}>
                 <div>
@@ -1286,16 +1583,36 @@ function AdminOrdersPage() {
           })}
         </div>
       )}
+      {orders.data && (
+        <Pagination
+          page={page}
+          totalPages={orders.data.totalPages}
+          label="Admin order pages"
+          onPageChange={setPage}
+        />
+      )}
     </AdminPage>
   );
 }
 function AdminOrderDetailPage() {
   const { orderId = '' } = useParams();
+  const client = useQueryClient();
   const order = useQuery({
     queryKey: ['admin-order', orderId],
     queryFn: () => getAdminOrder(orderId),
     enabled: Boolean(orderId),
     ...queryDefaults,
+  });
+  const mutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: Order['status'] }) =>
+      updateOrderStatus(id, status),
+    onSuccess: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: ['admin-orders'] }),
+        client.invalidateQueries({ queryKey: ['orders'] }),
+        client.invalidateQueries({ queryKey: ['order'] }),
+        client.invalidateQueries({ queryKey: ['admin-order'] }),
+      ]),
   });
   if (order.isPending)
     return (
@@ -1309,16 +1626,26 @@ function AdminOrderDetailPage() {
         <ErrorState error={order.error} />
       </section>
     );
+  const next = nextOrderStatus(order.data.status);
   return (
     <section className="container narrow">
       <PageHeader eyebrow="Admin order" title={`Order ${order.data.id.slice(0, 8)}`}>
         <span className="badge">{order.data.status}</span>
       </PageHeader>
       <div className="summary-card order-card">
+        <div className="order-customer">
+          <strong>Customer</strong>
+          <span>{order.data.customer?.email ?? 'Unknown customer'}</span>
+          {order.data.customer && <small>Customer ID {order.data.customer.id}</small>}
+        </div>
         {order.data.items.map((item) => (
           <div className="summary-row" key={item.productId}>
             <span>
-              {item.productName} × {item.quantity}
+              <strong>{item.productName}</strong>
+              <small>
+                Product {item.productId.slice(0, 8)} · {formatMoney(item.unitPriceMinor)} each ·
+                Quantity {item.quantity}
+              </small>
             </span>
             <strong>{formatMoney(item.lineSubtotalMinor)}</strong>
           </div>
@@ -1327,6 +1654,23 @@ function AdminOrderDetailPage() {
           <span>Total</span>
           <strong>{formatMoney(order.data.totalMinor)}</strong>
         </div>
+        <StatusDates dates={order.data.statusDates} />
+        {mutation.isError && (
+          <InlineAlert tone="error">
+            {mutation.error instanceof ApiError
+              ? mutation.error.message
+              : 'Could not update order status.'}
+          </InlineAlert>
+        )}
+        {next && (
+          <button
+            className="button"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate({ id: order.data.id, status: next })}
+          >
+            {mutation.isPending ? 'Updating…' : `Mark ${next.toLowerCase()}`}
+          </button>
+        )}
       </div>
     </section>
   );

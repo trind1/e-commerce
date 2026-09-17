@@ -1,8 +1,9 @@
-import 'dotenv/config';
 import { buildApp } from './app.js';
 import { readConfig } from './config.js';
 import { createDatabaseClient } from './db/client.js';
+import { loadProjectEnvironment } from './environment.js';
 
+loadProjectEnvironment();
 const config = readConfig();
 if (!config.DATABASE_URL || !config.SESSION_HMAC_SECRET) {
   throw new Error('DATABASE_URL and SESSION_HMAC_SECRET are required to start the API.');

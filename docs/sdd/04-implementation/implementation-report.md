@@ -132,3 +132,36 @@ The temporary `ecommerce_test` PostgreSQL container was removed after verificati
 | `git diff --check` | PASS | No whitespace errors |
 
 The source-level review and static gates do not replace disposable-PostgreSQL evidence. TASK-003 through TASK-007 and TASK-008 must remain below `PASS` until DB-backed API/concurrency tests and real Customer/Admin E2E flows run successfully.
+
+## Remediation implementation — 2026-09-16
+
+The post-review remediation added root `.env` loading for API startup/Admin provisioning, root Vite environment discovery, a local PostgreSQL Compose definition with a separate test database, a safe test-database migration command, documented local startup, database readiness, and fail-closed test commands. Registration now creates the Customer and empty Cart in one nested persistence write. The PostgreSQL integration fixture no longer violates the category canonicalization constraint, and it now verifies registration Cart creation and duplicate-registration non-mutation. Critical/responsive E2E suites no longer skip when configuration is absent; only the explicitly named shell smoke test is runnable without an API.
+
+Verification remains blocked by the workstation database environment; see the remediation update in [implementation verification](./verification.md).
+
+## Remediation follow-up — Admin, order, pagination, price and operational hardening
+
+- **Status:** `IN PROGRESS` — source and non-database verification are present; the new cleanup-index migration and API-backed acceptance still require PostgreSQL.
+- **Scope:** the approved remediation items for Admin category/product editing, Customer/Admin order detail, frontend pagination, decimal price validation, safe pagination arithmetic, Admin provisioning semantics, and expired-record cleanup.
+
+### Implemented
+
+- Admin can rename a Category and edit a Product's name, description, USD price, and active target Category. The product form preserves an inactive current Category unless the Admin deliberately changes it.
+- Customer order detail now presents immutable product identity, unit price, quantity, subtotal, total, and placed/processing/completed dates. Admin order detail additionally presents customer identity and advances the allowed next status.
+- Customer orders plus Admin orders, categories, products, and inventory use URL-backed pageable collection calls. The shared pager retains a Previous path when a manually supplied URL page is out of range.
+- USD price input is parsed as decimal text to integer minor units; zero, scientific notation, unsafe values, and more than two decimal places are rejected rather than rounded.
+- Page and page-size validation now require safe integers, and Order services verify the calculated Prisma offset before querying.
+- One-shot Admin provisioning compares an operator-supplied token against a configured SHA-256 digest using a timing-safe comparison. The raw token is no longer a configuration value that is merely checked for presence.
+- `cleanup:expired` deletes expired sessions in one transaction and deletes completed checkout idempotency rows only when an explicit retention duration is configured. The additive migration adds the supporting `(state, completed_at)` index; it does not alter or delete existing records.
+- The follow-up migration removes the redundant pre-trim category unique index; the canonical trimmed/case-folded unique index remains authoritative.
+
+### Compatibility and recovery
+
+- Existing API request and response contracts are unchanged; the new frontend uses existing `PATCH` contracts and page parameters.
+- Applying the cleanup-index migration is additive. If an index rollback is required, drop only `checkout_idempotencies_state_completed_cleanup_idx`; no application data migration or backfill is needed.
+- Applying the duplicate-index cleanup is metadata-only. Recovery is to recreate `categories_name_normalized_key` with `lower(name)` if rollback is required; the canonical `categories_normalized_name_key` is never removed.
+- The cleanup command never deletes Orders, Users, Cart records, active Sessions, or idempotency rows unless they are `COMPLETED`, have a completion date, and are older than the configured retention.
+
+### Remaining scope requiring product/infrastructure decisions
+
+Production-grade distributed login rate limiting, metrics backend/alerting, database backup destination and recovery objective, HTTPS/reverse-proxy/domain configuration, and password-reset email delivery remain unimplemented because the approved MVP has no deployment topology, retention/RPO-RTO, provider, or email-origin decisions for them.

@@ -47,6 +47,7 @@ export class AuthService {
           passwordHash,
           displayName: input.displayName ?? null,
           role: Role.CUSTOMER,
+          cart: { create: {} },
         },
       });
     } catch (error) {

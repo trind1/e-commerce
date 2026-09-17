@@ -134,3 +134,39 @@ export function InlineAlert({
     </div>
   );
 }
+
+export function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+  label,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  label: string;
+}) {
+  const lastPage = Math.max(1, totalPages);
+  if (page <= 1 && lastPage <= 1) return null;
+  return (
+    <nav className="pagination" aria-label={label}>
+      <button
+        className="button secondary"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+      >
+        Previous
+      </button>
+      <span aria-live="polite">
+        Page {page} of {lastPage}
+      </span>
+      <button
+        className="button secondary"
+        disabled={page >= lastPage}
+        onClick={() => onPageChange(page + 1)}
+      >
+        Next
+      </button>
+    </nav>
+  );
+}

@@ -49,3 +49,20 @@
 ### Verdict
 
 `BLOCKED` — do not mark TASK-003 through TASK-008 `PASS` until the missing DB/API environment is supplied and all required acceptance evidence is rerun.
+
+## Remediation update — 2026-09-16
+
+- **Scope:** FIX-01 through FIX-06 from the system review: Git metadata recovery, repeatable local PostgreSQL configuration, root environment loading, atomic Customer/Cart registration, integration-fixture correction, fail-closed DB/E2E commands, and database readiness.
+- **Implemented:** normal Git metadata is available at `.git` with the `origin` remote intact; `compose.yaml` defines a loopback-only PostgreSQL 16 development service and `ecommerce_test`; API startup and Admin provisioning load the root `.env` explicitly; Vite uses the same root environment directory; registration creates the Cart as a nested database write; the direct persistence fixture uses canonical `Hardware`; `/ready` performs a database query; and [local development instructions](../../LOCAL_DEVELOPMENT.md) document database setup.
+- **Test-gate changes:** `test:fast` remains the no-database suite; `test:e2e:smoke` is isolated and mocks API responses; `test:e2e:acceptance` validates all E2E variables and fails before collection if any are missing; `test` now invokes the full `test:all` gate; `test:db` migrates the disposable `_test` database first.
+- **Static evidence:** format, lint, strict typecheck, API tests (15), unit tests (2), web tests (6), build, `git diff --check`, and browser smoke E2E (1) passed. Root-environment loading was verified from the API workspace without exposing values.
+- **Remaining blocker:** this workstation has no PostgreSQL listener, `psql`/`pg_isready`, or usable Compose command. `test:db` reaches its disposable database migration step and fails because `127.0.0.1:5432` is unavailable. Acceptance E2E correctly fails closed because `.env` does not define the required `E2E_*` variables. These are environment prerequisites, not passing test results.
+- **Verdict:** `BLOCKED` — source remediation is present, but TASK-003–TASK-008 still require successful real PostgreSQL integration, concurrency, and Customer/Admin acceptance evidence.
+
+## Remediation follow-up verification — 2026-09-16
+
+- **Scope:** Admin edit flows, order-detail status/customer information and transition controls, collection pagination, exact decimal price parsing, safe Order offset validation, Admin provisioning token verification, and expired-record cleanup.
+- **Non-database evidence:** strict typecheck passed; API unit tests passed (22 tests, including unsafe page offset, provision-token digest, cleanup predicates, and retention overflow); web tests passed (9 tests, including decimal input and pager behavior); build and browser smoke E2E passed.
+- **Database migration / integration:** `prisma validate` passes for the cleanup index and duplicate-index cleanup migration. `npm run test:db` reaches `prisma migrate deploy` for `ecommerce_test` but PostgreSQL is unavailable at `127.0.0.1:5432`, so neither migration nor the expanded Admin lifecycle integration test has executed against a disposable database.
+- **Acceptance E2E:** the expanded critical test is defined, but `npm run test:e2e:acceptance` correctly fails before collection until all `E2E_*` variables and a live disposable database are provided.
+- **Verdict:** `BLOCKED` — no database-backed or API-backed acceptance claim is made from static/unit evidence.

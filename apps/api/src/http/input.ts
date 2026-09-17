@@ -5,8 +5,8 @@ import { AppError } from '../errors.js';
 export const uuidSchema = z.string().uuid();
 export const pageQuerySchema = z
   .object({
-    page: z.coerce.number().int().min(1).default(1),
-    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    page: z.coerce.number().int().safe().min(1).default(1),
+    pageSize: z.coerce.number().int().safe().min(1).max(100).default(20),
   })
   .strict();
 

@@ -172,5 +172,6 @@ model CheckoutIdempotency {
   order       Order?                    @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@unique([userId, keyHmac], map: "checkout_idempotencies_user_key_hmac_key")
+  @@index([state, completedAt], map: "checkout_idempotencies_state_completed_cleanup_idx")
   @@map("checkout_idempotencies")
 }

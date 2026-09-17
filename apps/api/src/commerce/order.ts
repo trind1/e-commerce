@@ -37,6 +37,21 @@ function numberFromBigInt(value: bigint): number {
   return number;
 }
 
+function pageBounds(page: { page: number; pageSize: number }): { skip: number; take: number } {
+  if (
+    !Number.isSafeInteger(page.page) ||
+    !Number.isSafeInteger(page.pageSize) ||
+    page.page < 1 ||
+    page.pageSize < 1 ||
+    page.pageSize > 100
+  ) {
+    throw new AppError('VALIDATION_ERROR');
+  }
+  const skip = (page.page - 1) * page.pageSize;
+  if (!Number.isSafeInteger(skip)) throw new AppError('VALIDATION_ERROR');
+  return { skip, take: page.pageSize };
+}
+
 function toOrderDetail(order: OrderWithItems): OrderDetail {
   return {
     id: order.id,
@@ -220,13 +235,12 @@ export class OrderService {
     userId: string,
     page: { page: number; pageSize: number },
   ): Promise<{ items: OrderSummary[]; totalItems: number }> {
-    const skip = (page.page - 1) * page.pageSize;
+    const bounds = pageBounds(page);
     const [orders, totalItems] = await Promise.all([
       this.database.order.findMany({
         where: { userId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        skip,
-        take: page.pageSize,
+        ...bounds,
       }),
       this.database.order.count({ where: { userId } }),
     ]);
@@ -256,14 +270,13 @@ export class OrderService {
     status?: OrderStatus,
   ): Promise<{ items: AdminOrderDetail[]; totalItems: number }> {
     const where = status ? { status } : {};
-    const skip = (page.page - 1) * page.pageSize;
+    const bounds = pageBounds(page);
     const [orders, totalItems] = await Promise.all([
       this.database.order.findMany({
         where,
         include: orderInclude(),
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        skip,
-        take: page.pageSize,
+        ...bounds,
       }),
       this.database.order.count({ where }),
     ]);

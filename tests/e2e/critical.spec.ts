@@ -1,17 +1,13 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { readE2eEnvironment } from '../../scripts/e2e-environment.ts';
 
-const e2eReady = Boolean(
-  process.env.E2E_DATABASE_URL &&
-  process.env.E2E_SESSION_HMAC_SECRET &&
-  process.env.E2E_ADMIN_EMAIL &&
-  process.env.E2E_ADMIN_PASSWORD,
-);
+const e2e = readE2eEnvironment();
 
 async function signInAdmin(request: APIRequestContext) {
   const response = await request.post('/api/auth/login', {
     data: {
-      email: process.env.E2E_ADMIN_EMAIL,
-      password: process.env.E2E_ADMIN_PASSWORD,
+      email: e2e.adminEmail,
+      password: e2e.adminPassword,
     },
   });
   expect(response.status()).toBe(200);
@@ -41,13 +37,6 @@ async function seedProduct(request: APIRequestContext, suffix: string) {
 }
 
 test.describe('critical Customer and Admin journeys', () => {
-  test.beforeEach(() => {
-    test.skip(
-      !e2eReady,
-      'Requires E2E_DATABASE_URL, E2E_SESSION_HMAC_SECRET, and provisioned Admin credentials.',
-    );
-  });
-
   test('Customer can register, browse, update cart, checkout, view history, update profile, and login again', async ({
     page,
     request,
@@ -100,12 +89,14 @@ test.describe('critical Customer and Admin journeys', () => {
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const categoryName = `UI Category ${suffix}`;
     const productName = `UI Product ${suffix}`;
+    const updatedCategoryName = `${categoryName} Updated`;
+    const updatedProductName = `${productName} Updated`;
     const customerEmail = `admin-flow-${suffix}@example.com`;
     const customerPassword = 'e2e-customer-pass';
 
     await page.goto('/login');
-    await page.getByLabel('Email address').fill(process.env.E2E_ADMIN_EMAIL ?? '');
-    await page.getByLabel('Password').fill(process.env.E2E_ADMIN_PASSWORD ?? '');
+    await page.getByLabel('Email address').fill(e2e.adminEmail);
+    await page.getByLabel('Password').fill(e2e.adminPassword);
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible();
 
@@ -113,18 +104,36 @@ test.describe('critical Customer and Admin journeys', () => {
     await page.getByLabel('Category name').fill(categoryName);
     await page.getByRole('button', { name: 'Add category' }).click();
     await expect(page.getByText(categoryName)).toBeVisible();
+    const categoryRow = page.locator('.admin-row', { hasText: categoryName });
+    await categoryRow.getByRole('button', { name: 'Edit' }).click();
+    await page.getByLabel(`Name for ${categoryName}`).fill(updatedCategoryName);
+    await categoryRow.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText(updatedCategoryName)).toBeVisible();
 
     await page.goto('/admin/products');
     await page.getByLabel('Name').fill(productName);
     await page.getByLabel('Description').fill(`Description ${suffix}`);
     await page.getByLabel('Price (USD)').fill('25.00');
     await page.getByLabel('Initial stock').fill('5');
-    await page.getByLabel('Category').selectOption({ label: categoryName });
+    await page.getByLabel('Category').selectOption({ label: updatedCategoryName });
     await page.getByRole('button', { name: 'Create product' }).click();
     await expect(page.getByText(productName)).toBeVisible();
+    const productRow = page.locator('.admin-row', { hasText: productName });
+    await productRow.getByRole('button', { name: 'Edit' }).click();
+    const editProduct = page.locator('form.admin-form', {
+      has: page.getByRole('heading', { name: 'Edit product' }),
+    });
+    await editProduct.getByLabel('Price (USD)').fill('25.001');
+    await editProduct.getByRole('button', { name: 'Save changes' }).click();
+    await expect(editProduct.getByRole('alert')).toContainText('no more than two decimal places');
+    await editProduct.getByLabel('Name').fill(updatedProductName);
+    await editProduct.getByLabel('Description').fill(`Updated description ${suffix}`);
+    await editProduct.getByLabel('Price (USD)').fill('26.50');
+    await editProduct.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText(updatedProductName)).toBeVisible();
 
     await page.goto('/admin/inventory');
-    await page.getByLabel(`Quantity for ${productName}`).fill('4');
+    await page.getByLabel(`Quantity for ${updatedProductName}`).fill('4');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('Current 4')).toBeVisible();
 
@@ -134,19 +143,24 @@ test.describe('critical Customer and Admin journeys', () => {
     await customerPage.getByLabel('Email address').fill(customerEmail);
     await customerPage.getByLabel('Password').fill(customerPassword);
     await customerPage.getByRole('button', { name: 'Create account' }).click();
-    await customerPage.getByPlaceholder('Search by name or description').fill(productName);
+    await customerPage.getByPlaceholder('Search by name or description').fill(updatedProductName);
     await customerPage.getByRole('button', { name: 'Search' }).click();
-    await customerPage.getByRole('link', { name: productName }).click();
+    await customerPage.getByRole('link', { name: updatedProductName }).click();
     await customerPage.getByRole('button', { name: 'Add to cart' }).click();
     await customerPage.getByRole('button', { name: 'Continue to checkout' }).click();
     await customerPage.getByRole('button', { name: 'Place order' }).click();
     await expect(
       customerPage.getByRole('heading', { name: 'Thank you for your order' }),
     ).toBeVisible();
+    await expect(customerPage.getByText('Placed')).toBeVisible();
     await customerContext.close();
 
     await page.goto('/admin/orders');
     await expect(page.getByText(customerEmail)).toBeVisible();
+    const orderRow = page.locator('.admin-row', { hasText: customerEmail });
+    await orderRow.getByRole('link', { name: 'View' }).click();
+    await expect(page.getByText(customerEmail)).toBeVisible();
+    await expect(page.getByText('Placed')).toBeVisible();
     await page.getByRole('button', { name: 'Mark processing' }).click();
     await expect(page.getByText('PROCESSING')).toBeVisible();
     await page.getByRole('button', { name: 'Mark completed' }).click();

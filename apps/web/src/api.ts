@@ -136,7 +136,7 @@ export const getProfile = () => request<Profile>('/users/me');
 export const updateProfile = (displayName: string) =>
   request<Profile>('/users/me', { method: 'PATCH', body: JSON.stringify({ displayName }) });
 
-export const getCategories = () => request<Collection<Category>>('/categories');
+export const getCategories = (query = '') => request<Collection<Category>>(`/categories${query}`);
 export const getProducts = (query = '') => request<Collection<Product>>(`/products${query}`);
 export const getProduct = (productId: string) => request<Product>(`/products/${productId}`);
 
@@ -157,15 +157,17 @@ export const checkout = (cartVersion: number, idempotencyKey: string) =>
     headers: { 'Idempotency-Key': idempotencyKey },
     body: JSON.stringify({ cartVersion }),
   });
-export const getOrders = () => request<Collection<OrderSummary>>('/orders');
+export const getOrders = (query = '') => request<Collection<OrderSummary>>(`/orders${query}`);
 export const getOrder = (orderId: string) => request<Order>(`/orders/${orderId}`);
 
-export const getAdminCategories = () => request<Collection<Category>>('/admin/categories');
+export const getAdminCategories = (query = '') =>
+  request<Collection<Category>>(`/admin/categories${query}`);
 export const createCategory = (name: string) =>
   request<Category>('/admin/categories', json({ name }));
 export const updateCategory = (id: string, body: { name?: string; isActive?: boolean }) =>
   request<Category>(`/admin/categories/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
-export const getAdminProducts = () => request<Collection<Product>>('/admin/products');
+export const getAdminProducts = (query = '') =>
+  request<Collection<Product>>(`/admin/products${query}`);
 export const createProduct = (body: {
   name: string;
   description: string;
@@ -175,15 +177,22 @@ export const createProduct = (body: {
 }) => request<Product>('/admin/products', json(body));
 export const updateProduct = (
   id: string,
-  body: Partial<Pick<Product, 'name' | 'description' | 'priceMinor' | 'isActive'>>,
+  body: {
+    name?: string;
+    description?: string;
+    priceMinor?: number;
+    categoryId?: string;
+    isActive?: boolean;
+  },
 ) => request<Product>(`/admin/products/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
-export const getInventory = () => request<Collection<InventoryItem>>('/admin/inventory');
+export const getInventory = (query = '') =>
+  request<Collection<InventoryItem>>(`/admin/inventory${query}`);
 export const updateInventory = (id: string, quantity: number) =>
   request<{ productId: string; quantity: number; updatedAt: string }>(`/admin/inventory/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ quantity }),
   });
-export const getAdminOrders = () => request<Collection<Order>>('/admin/orders');
+export const getAdminOrders = (query = '') => request<Collection<Order>>(`/admin/orders${query}`);
 export const getAdminOrder = (orderId: string) => request<Order>(`/admin/orders/${orderId}`);
 export const updateOrderStatus = (id: string, status: Order['status']) =>
   request<Order>(`/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });

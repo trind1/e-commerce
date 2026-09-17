@@ -37,8 +37,10 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   app.decorateRequest('auth', null);
   app.decorateRequest('sessionToken', null);
 
-  app.addHook('onRequest', async (request) => {
-    request.headers['x-request-id'] = randomUUID();
+  app.addHook('onRequest', async (request, reply) => {
+    const requestId = randomUUID();
+    request.headers['x-request-id'] = requestId;
+    reply.header('x-request-id', requestId);
   });
 
   app.addHook('onRequest', async (request, reply) => {
@@ -70,6 +72,16 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   }
 
   app.get('/health', async () => ({ status: 'ok', environment: options.config.NODE_ENV }));
+  app.get('/ready', async (_request, reply) => {
+    if (!database) return reply.code(503).send({ status: 'unavailable' });
+
+    try {
+      await database.$queryRaw`SELECT 1`;
+      return { status: 'ready' };
+    } catch {
+      return reply.code(503).send({ status: 'unavailable' });
+    }
+  });
 
   app.setNotFoundHandler((request, reply) => {
     const requestId = request.headers['x-request-id'] as string;

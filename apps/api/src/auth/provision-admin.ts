@@ -1,17 +1,19 @@
-import 'dotenv/config';
 import argon2 from 'argon2';
 import { Role } from '@prisma/client';
 import { readConfig } from '../config.js';
 import { createDatabaseClient } from '../db/client.js';
+import { loadProjectEnvironment } from '../environment.js';
 import { displayNameSchema, emailSchema, normalizeEmail, passwordSchema } from './policy.js';
+import { verifyAdminProvisionToken } from './provision-token.js';
 
+loadProjectEnvironment();
 const provisionToken = process.env.ADMIN_PROVISION_TOKEN;
+const provisionTokenHash = process.env.ADMIN_PROVISION_TOKEN_HASH;
 const email = process.env.ADMIN_EMAIL;
 const password = process.env.ADMIN_PASSWORD;
 
-if (!provisionToken || provisionToken.length < 32 || !email || !password) {
-  throw new Error('ADMIN_PROVISION_TOKEN, ADMIN_EMAIL, and ADMIN_PASSWORD are required.');
-}
+verifyAdminProvisionToken(provisionToken, provisionTokenHash);
+if (!email || !password) throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD are required.');
 
 const config = readConfig();
 if (!config.DATABASE_URL) throw new Error('DATABASE_URL is required.');
@@ -35,5 +37,3 @@ try {
 } finally {
   await database.$disconnect();
 }
-
-void provisionToken;

@@ -5,8 +5,8 @@ const e2eSessionSecret = process.env.E2E_SESSION_HMAC_SECRET;
 const apiWebServer =
   e2eDatabaseUrl && e2eSessionSecret
     ? {
-        command: 'npx --yes node@22.12.0 node_modules/tsx/dist/cli.mjs apps/api/src/server.ts',
-        url: 'http://127.0.0.1:3000/health',
+        command: 'node --import tsx apps/api/src/server.ts',
+        url: 'http://127.0.0.1:3000/ready',
         reuseExistingServer: !process.env.CI,
         env: {
           DATABASE_URL: e2eDatabaseUrl,
@@ -29,10 +29,10 @@ export default defineConfig({
   webServer: [
     ...(apiWebServer ? [apiWebServer] : []),
     {
-      command:
-        'npx --yes node@22.12.0 node_modules/vite/bin/vite.js apps/web --host 127.0.0.1 --port 4173',
+      command: 'node node_modules/vite/bin/vite.js apps/web --host 127.0.0.1 --port 4173',
       url: 'http://127.0.0.1:4173',
       reuseExistingServer: !process.env.CI,
+      env: { VITE_API_URL: '/api' },
     },
   ],
 });

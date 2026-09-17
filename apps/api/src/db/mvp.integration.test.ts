@@ -108,7 +108,7 @@ describe('MVP API integration', () => {
   });
 
   it('registers a customer, renews an idle session, and serves active catalog data', async () => {
-    const category = await createCategory(' Hardware ');
+    const category = await createCategory('Hardware');
     const product = await createProduct(category.id, {
       name: 'Keyboard',
       description: 'Mechanical keyboard',
@@ -119,7 +119,7 @@ describe('MVP API integration', () => {
 
     const categories = await app.inject({ method: 'GET', url: '/api/categories' });
     expect(categories.statusCode).toBe(200);
-    expect(categories.json().items).toEqual([{ id: category.id, name: ' Hardware ' }]);
+    expect(categories.json().items).toEqual([{ id: category.id, name: 'Hardware' }]);
 
     const products = await app.inject({ method: 'GET', url: '/api/products?q=MECHANICAL' });
     expect(products.statusCode).toBe(200);
@@ -174,6 +174,31 @@ describe('MVP API integration', () => {
     ).resolves.toMatchObject({ statusCode: 200 });
   });
 
+  it('creates one empty cart atomically with a newly registered Customer', async () => {
+    const registration = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { email: 'new-customer@example.com', password: 'customer-pass' },
+    });
+    expect(registration.statusCode).toBe(201);
+
+    const user = await database.user.findUniqueOrThrow({
+      where: { email: 'new-customer@example.com' },
+    });
+    await expect(
+      database.cart.findUniqueOrThrow({ where: { userId: user.id } }),
+    ).resolves.toMatchObject({ userId: user.id, version: 0n });
+
+    const duplicate = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { email: ' NEW-CUSTOMER@example.com ', password: 'customer-pass' },
+    });
+    expect(duplicate.statusCode).toBe(409);
+    await expect(database.user.count()).resolves.toBe(1);
+    await expect(database.cart.count()).resolves.toBe(1);
+  });
+
   it('enforces catalog lifecycle and Admin category/product/inventory controls', async () => {
     const admin = await createAdmin();
     const createdCategory = await app.inject({
@@ -193,6 +218,15 @@ describe('MVP API integration', () => {
     });
     expect(duplicate.statusCode).toBe(409);
     expect(duplicate.json().error.code).toBe('CATEGORY_NAME_EXISTS');
+
+    const renamedCategory = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/categories/${categoryId}`,
+      headers: { cookie: admin.cookie, origin: config.CORS_ORIGIN },
+      payload: { name: 'Lighting' },
+    });
+    expect(renamedCategory.statusCode).toBe(200);
+    expect(renamedCategory.json()).toMatchObject({ id: categoryId, name: 'Lighting' });
 
     const deactivated = await app.inject({
       method: 'PATCH',
@@ -238,6 +272,33 @@ describe('MVP API integration', () => {
     expect(productResponse.statusCode).toBe(201);
     const productId = productResponse.json().id as string;
 
+    const replacementCategory = await app.inject({
+      method: 'POST',
+      url: '/api/admin/categories',
+      headers: { cookie: admin.cookie, origin: config.CORS_ORIGIN },
+      payload: { name: 'Office' },
+    });
+    expect(replacementCategory.statusCode).toBe(201);
+    const updatedProduct = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/products/${productId}`,
+      headers: { cookie: admin.cookie, origin: config.CORS_ORIGIN },
+      payload: {
+        name: 'Reading lamp',
+        description: 'Warm adjustable desk lamp',
+        priceMinor: 2_750,
+        categoryId: replacementCategory.json().id,
+      },
+    });
+    expect(updatedProduct.statusCode).toBe(200);
+    expect(updatedProduct.json()).toMatchObject({
+      id: productId,
+      name: 'Reading lamp',
+      description: 'Warm adjustable desk lamp',
+      priceMinor: 2_750,
+      category: { id: replacementCategory.json().id, name: 'Office' },
+    });
+
     const inventory = await app.inject({
       method: 'PATCH',
       url: `/api/admin/inventory/${productId}`,
@@ -279,7 +340,7 @@ describe('MVP API integration', () => {
     });
     expect(missingLine.statusCode).toBe(404);
     expect(missingLine.json().error.code).toBe('CART_ITEM_NOT_FOUND');
-    expect(await database.cart.count({ where: { userId: customer.id } })).toBe(0);
+    expect(await database.cart.count({ where: { userId: customer.id } })).toBe(1);
 
     const firstAdd = await addToCart(customer.cookie, product.id, 2);
     expect(firstAdd.statusCode).toBe(200);
