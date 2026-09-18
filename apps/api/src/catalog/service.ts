@@ -265,7 +265,10 @@ export class CatalogService {
     const description = normalizedProductText(input.description);
     const product = await this.database.$transaction(async (transaction) => {
       const categories = await transaction.$queryRaw<Array<{ id: string; is_active: boolean }>>`
-        SELECT id, is_active FROM categories WHERE id = ${input.categoryId} FOR UPDATE
+        SELECT id, is_active
+        FROM categories
+        WHERE id = CAST(${input.categoryId} AS uuid)
+        FOR UPDATE
       `;
       const category = categories[0];
       if (!category) throw new AppError('CATEGORY_NOT_FOUND');
@@ -308,7 +311,10 @@ export class CatalogService {
       if (!existing) throw new AppError('PRODUCT_NOT_FOUND');
       if (input.categoryId !== undefined) {
         const categories = await transaction.$queryRaw<Array<{ id: string; is_active: boolean }>>`
-          SELECT id, is_active FROM categories WHERE id = ${input.categoryId} FOR UPDATE
+          SELECT id, is_active
+          FROM categories
+          WHERE id = CAST(${input.categoryId} AS uuid)
+          FOR UPDATE
         `;
         const category = categories[0];
         if (!category) throw new AppError('CATEGORY_NOT_FOUND');

@@ -16,5 +16,41 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      DATABASE_URL: postgresql://ecommerce:${POSTGRES_PASSWORD:-change-me}@postgres:5432/ecommerce?schema=public
+      DATABASE_CONNECTION_LIMIT: ${DATABASE_CONNECTION_LIMIT:-5}
+      DATABASE_POOL_TIMEOUT_SECONDS: ${DATABASE_POOL_TIMEOUT_SECONDS:-10}
+      SESSION_HMAC_SECRET: ${SESSION_HMAC_SECRET:?SESSION_HMAC_SECRET is required}
+      SESSION_ABSOLUTE_TTL_SECONDS: ${SESSION_ABSOLUTE_TTL_SECONDS:-28800}
+      SESSION_IDLE_TTL_SECONDS: ${SESSION_IDLE_TTL_SECONDS:-1800}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:3000:3000'
+    command:
+      - sh
+      - -c
+      - node node_modules/prisma/build/index.js migrate deploy && node apps/api/dist/server.js
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/ready').then((response) =>
+          process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres-data:

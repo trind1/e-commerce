@@ -25,7 +25,12 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const database =
     options.database ??
-    (options.config.DATABASE_URL ? createDatabaseClient(options.config.DATABASE_URL) : undefined);
+    (options.config.DATABASE_URL
+      ? createDatabaseClient(options.config.DATABASE_URL, {
+          connectionLimit: options.config.DATABASE_CONNECTION_LIMIT,
+          poolTimeoutSeconds: options.config.DATABASE_POOL_TIMEOUT_SECONDS,
+        })
+      : undefined);
   const sessions = database
     ? new SessionService(database, {
         absoluteTtlSeconds: options.config.SESSION_ABSOLUTE_TTL_SECONDS,

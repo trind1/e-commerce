@@ -20,7 +20,10 @@ if (!config.DATABASE_URL) throw new Error('DATABASE_URL is required.');
 const cleanupEnvironment = cleanupEnvironmentSchema.parse({
   CHECKOUT_IDEMPOTENCY_RETENTION_SECONDS: process.env.CHECKOUT_IDEMPOTENCY_RETENTION_SECONDS,
 });
-const database = createDatabaseClient(config.DATABASE_URL);
+const database = createDatabaseClient(config.DATABASE_URL, {
+  connectionLimit: config.DATABASE_CONNECTION_LIMIT,
+  poolTimeoutSeconds: config.DATABASE_POOL_TIMEOUT_SECONDS,
+});
 
 try {
   const input =

@@ -19,7 +19,10 @@ const config = readConfig();
 if (!config.DATABASE_URL) throw new Error('DATABASE_URL is required.');
 const normalizedEmail = emailSchema.parse(email);
 const exactPassword = passwordSchema.parse(password);
-const database = createDatabaseClient(config.DATABASE_URL);
+const database = createDatabaseClient(config.DATABASE_URL, {
+  connectionLimit: config.DATABASE_CONNECTION_LIMIT,
+  poolTimeoutSeconds: config.DATABASE_POOL_TIMEOUT_SECONDS,
+});
 
 try {
   const existingAdmin = await database.user.findFirst({ where: { role: Role.ADMIN } });

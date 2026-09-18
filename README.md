@@ -60,6 +60,31 @@ PostgreSQL chỉ bind tại `127.0.0.1:5432`.
 
 Nếu máy chưa có Compose plugin, cài Docker Compose hoặc dùng PostgreSQL 16 local và tạo hai database tương ứng với `DATABASE_URL` và `TEST_DATABASE_URL`.
 
+## Chạy API bằng Docker
+
+API trong Docker tự kết nối tới service `postgres` và tự chạy migration khi khởi động:
+
+```bash
+docker compose up -d postgres api
+docker compose ps
+curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3000/ready
+```
+
+Xem log API:
+
+```bash
+docker compose logs -f api
+```
+
+Khi chạy API bằng Docker, chỉ cần chạy frontend local ở terminal khác:
+
+```bash
+npm run dev --workspace=@ecommerce/web
+```
+
+Giữ `CORS_ORIGIN` khớp với địa chỉ frontend. Với `http://localhost:5173`, cấu hình hiện tại đã phù hợp.
+
 ## Migration và tạo Admin
 
 ```bash
@@ -172,3 +197,5 @@ Lệnh này không xoá User, Order, Cart hoặc session còn hạn. Nên chạy
 - [Implementation verification](docs/sdd/04-implementation/verification.md)
 
 Production vẫn cần cấu hình riêng cho rate limiting distributed, metrics/alerting, backup/restore, HTTPS/reverse proxy và password reset email.
+
+docker compose exec postgres psql -U ecommerce -d ecommerce

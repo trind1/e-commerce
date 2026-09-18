@@ -105,7 +105,10 @@ export class OrderService {
     userId: string,
   ): Promise<{ id: string; version: bigint } | null> {
     const rows = await transaction.$queryRaw<Array<{ id: string; version: bigint }>>`
-      SELECT id, version FROM carts WHERE user_id = ${userId} FOR UPDATE
+      SELECT id, version
+      FROM carts
+      WHERE user_id = CAST(${userId} AS uuid)
+      FOR UPDATE
     `;
     return rows[0] ?? null;
   }
@@ -153,10 +156,18 @@ export class OrderService {
         const productIds = initialCartItems.map((item) => item.productId);
         const categoryIds = [...new Set(initialCartItems.map((item) => item.product.categoryId))];
         await transaction.$queryRaw`
-          SELECT id FROM categories WHERE id IN (${Prisma.join(categoryIds)}) ORDER BY id FOR UPDATE
+          SELECT id
+          FROM categories
+          WHERE id IN (${Prisma.join(categoryIds.map((id) => Prisma.sql`CAST(${id} AS uuid)`))})
+          ORDER BY id
+          FOR UPDATE
         `;
         await transaction.$queryRaw`
-          SELECT id FROM products WHERE id IN (${Prisma.join(productIds)}) ORDER BY id FOR UPDATE
+          SELECT id
+          FROM products
+          WHERE id IN (${Prisma.join(productIds.map((id) => Prisma.sql`CAST(${id} AS uuid)`))})
+          ORDER BY id
+          FOR UPDATE
         `;
         const cartItems = await transaction.cartItem.findMany({
           where: { cartId: cart.id },

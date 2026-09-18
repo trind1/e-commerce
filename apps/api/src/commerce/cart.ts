@@ -109,7 +109,12 @@ export class CartService {
   }
 
   private async lockCart(transaction: Prisma.TransactionClient, userId: string): Promise<void> {
-    await transaction.$queryRaw`SELECT id FROM carts WHERE user_id = ${userId} FOR UPDATE`;
+    await transaction.$queryRaw`
+      SELECT id
+      FROM carts
+      WHERE user_id = CAST(${userId} AS uuid)
+      FOR UPDATE
+    `;
   }
 
   public async getCart(userId: string): Promise<CartView> {
