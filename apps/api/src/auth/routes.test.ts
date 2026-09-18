@@ -154,7 +154,8 @@ describe('authentication HTTP contract', () => {
     expect(registration.body).not.toContain('exact-pass');
     const cookie = cookieFrom(registration);
     expect(registration.headers['set-cookie']).toContain('HttpOnly');
-    expect(registration.headers['set-cookie']).toContain('SameSite=Lax');
+    expect(registration.headers['set-cookie']).toContain('SameSite=None');
+    expect(registration.headers['set-cookie']).toContain('Secure');
     expect(registration.headers['set-cookie']).toContain('Max-Age=1800');
 
     const session = await app.inject({

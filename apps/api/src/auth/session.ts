@@ -179,7 +179,7 @@ export function setSessionCookie(
     `${SESSION_COOKIE_NAME}=${session.token}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${secure ? 'None' : 'Lax'}`,
     `Max-Age=${session.maxAgeSeconds}`,
   ];
   if (secure) attributes.push('Secure');
@@ -191,7 +191,7 @@ export function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
     `${SESSION_COOKIE_NAME}=`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${secure ? 'None' : 'Lax'}`,
     'Max-Age=0',
     'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
   ];
